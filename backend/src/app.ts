@@ -1,0 +1,3 @@
+import express from 'express'; import cors from 'cors'; import api from './routes/api.js';
+const allowedOrigins = new Set([process.env.CORS_ORIGIN ?? 'http://localhost:5173', 'http://127.0.0.1:5173']);
+export const app=express(); app.use(cors({origin(origin, callback) { if (!origin || allowedOrigins.has(origin)) return callback(null, true); callback(new Error(`Origin ${origin} is not allowed by CORS`)); }})); app.use(express.json()); app.use('/api',api); app.use((err: unknown,_req: express.Request,res: express.Response,_next: express.NextFunction)=>{ const message=err instanceof Error?err.message:'Unexpected error'; res.status(400).json({error:message}); });

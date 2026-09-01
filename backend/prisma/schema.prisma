@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int       @id @default(autoincrement()) @map("user_id")
+  name         String    @db.VarChar(100)
+  email        String    @unique(map: "email") @db.VarChar(150)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamp(0)
+
+  @@map("users")
+}
+
+model Project {
+  id          Int       @id @default(autoincrement()) @map("project_id")
+  userId      Int       @map("user_id")
+  name        String    @map("project_name") @db.VarChar(150)
+  description String?   @db.Text
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamp(0)
+
+  @@index([userId], map: "fk_projects_user")
+  @@map("projects")
+}
+
+model WorkloadRequirement {
+  id                      Int       @id @default(autoincrement()) @map("workload_id")
+  projectId               Int       @map("project_id")
+  cpuVcpu                 Decimal   @map("cpu_vcpu") @db.Decimal(6, 2)
+  ramGb                   Decimal   @map("ram_gb") @db.Decimal(8, 2)
+  storageGb               Decimal   @map("storage_gb") @db.Decimal(10, 2)
+  networkGb              Decimal?   @default(0.00) @map("network_gb") @db.Decimal(10, 2)
+  expectedUsers          Int?       @default(0) @map("expected_users")
+  minimumWorkloadPercent  Decimal   @map("minimum_workload_percent") @db.Decimal(5, 2)
+  averageWorkloadPercent  Decimal   @map("average_workload_percent") @db.Decimal(5, 2)
+  peakWorkloadPercent     Decimal   @map("peak_workload_percent") @db.Decimal(5, 2)
+  usageHoursPerDay       Decimal   @map("usage_hours_per_day") @db.Decimal(5, 2)
+  peakHoursPerDay        Decimal   @map("peak_hours_per_day") @db.Decimal(5, 2)
+  createdAt              DateTime? @default(now()) @map("created_at") @db.Timestamp(0)
+
+  @@index([projectId], map: "fk_workload_project")
+  @@map("workload_requirements")
+}
+
+model CloudProvider {
+  id   Int    @id @default(autoincrement()) @map("provider_id")
+  name String @unique(map: "provider_name") @map("provider_name") @db.VarChar(100)
+  code String @unique(map: "provider_code") @map("provider_code") @db.VarChar(20)
+
+  @@map("cloud_providers")
+}
+
+model Service {
+  id         Int    @id @default(autoincrement()) @map("service_id")
+  providerId Int    @map("provider_id")
+  name       String @map("service_name") @db.VarChar(100)
+  type       String @map("service_type") @db.VarChar(50)
+
+  @@unique([providerId, name], map: "uq_provider_service")
+  @@map("services")
+}
+
+model Region {
+  id         Int    @id @default(autoincrement()) @map("region_id")
+  providerId Int    @map("provider_id")
+  name       String @map("region_name") @db.VarChar(100)
+  code       String @map("region_code") @db.VarChar(100)
+
+  @@unique([providerId, code], map: "uq_provider_region")
+  @@map("regions")
+}
+
+model Configuration {
+  id                  Int      @id @default(autoincrement()) @map("configuration_id")
+  serviceId           Int      @map("service_id")
+  regionId            Int      @map("region_id")
+  name                String   @map("configuration_name") @db.VarChar(150)
+  vcpu                Decimal  @db.Decimal(6, 2)
+  ramGb               Decimal  @map("ram_gb") @db.Decimal(8, 2)
+  storageGb           Decimal? @default(0.00) @map("storage_gb") @db.Decimal(10, 2)
+  availabilityPercent Decimal? @map("availability_percent") @db.Decimal(5, 2)
+
+  @@unique([serviceId, regionId, name], map: "uq_service_region_name")
+  @@index([regionId], map: "fk_config_region")
+  @@index([serviceId], map: "fk_config_service")
+  @@map("configurations")
+}
+
+model Pricing {
+  id              Int                   @id @default(autoincrement()) @map("pricing_id")
+  configurationId Int                   @map("configuration_id")
+  pricingModel    pricing_pricing_model @map("pricing_model")
+  category        pricing_category      @default(COMPUTE_HOURLY) @map("category")
+  price           Decimal               @db.Decimal(18, 8)
+  unit            String                @db.VarChar(50)
+  currency        String                @default("USD") @db.VarChar(10)
+  effectiveDate   DateTime              @map("effective_date") @db.Date
+  source          String?               @default("MANUAL") @db.VarChar(100)
+  createdAt       DateTime?             @default(now()) @map("created_at") @db.Timestamp(0)
+
+  @@unique([configurationId, pricingModel, category, effectiveDate], map: "uk_pricing_config_model_category_date")
+  @@index([configurationId], map: "fk_pricing_configuration")
+  @@map("pricing")
+}
+
+model constraints {
+  constraint_id            Int      @id @default(autoincrement())
+  project_id               Int
+  max_monthly_budget       Decimal? @db.Decimal(12, 2)
+  currency                 String?  @default("USD") @db.VarChar(10)
+  min_cpu_vcpu             Decimal? @db.Decimal(6, 2)
+  min_ram_gb               Decimal? @db.Decimal(8, 2)
+  min_storage_gb           Decimal? @db.Decimal(10, 2)
+  required_region          String?  @db.VarChar(100)
+  min_availability_percent Decimal? @db.Decimal(5, 2)
+  max_latency_ms           Decimal? @db.Decimal(8, 2)
+
+  @@index([project_id], map: "fk_constraints_project")
+}
+
+model estimation_results {
+  result_id              Int       @id @default(autoincrement())
+  project_id             Int
+  workload_id            Int
+  configuration_id       Int
+  estimated_monthly_cost Decimal   @db.Decimal(12, 2)
+  currency               String    @default("USD") @db.VarChar(10)
+  is_feasible            Boolean?  @default(true)
+  ranking                Int?
+  is_recommended         Boolean?  @default(false)
+  recommendation_reason  String?   @db.Text
+  created_at             DateTime? @default(now()) @db.Timestamp(0)
+
+  @@index([configuration_id], map: "fk_result_configuration")
+  @@index([project_id], map: "fk_result_project")
+  @@index([workload_id], map: "fk_result_workload")
+}
+
+enum pricing_pricing_model {
+  ON_DEMAND
+  RESERVED
+  SPOT
+}
+
+enum pricing_category {
+  COMPUTE_HOURLY
+  STORAGE_GB_MONTH
+  NETWORK_GB
+  IP_HOURLY
+  OTHER
+}

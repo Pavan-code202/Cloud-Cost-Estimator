@@ -1,0 +1,6 @@
+{
+  "name":"multicloud-planner-frontend","private":true,"version":"1.0.0","type":"module",
+  "scripts":{"dev":"vite","build":"tsc -b && vite build","test":"vitest run"},
+  "dependencies":{"@vitejs/plugin-react":"^4.3.4","axios":"^1.7.9","react":"^18.3.1","react-dom":"^18.3.1","react-router-dom":"^7.1.3","recharts":"^2.15.0","vite":"^6.0.11"},
+  "devDependencies":{"@types/react":"^18.3.18","@types/react-dom":"^18.3.5","typescript":"^5.7.3","vitest":"^3.0.5"}
+}
